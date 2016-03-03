@@ -31,7 +31,7 @@ namespace Clustering {
 		__points = head;
 	}
 
-	bool Cluster::__inn(const Point &p) const {
+	bool Cluster::__in(const Point &p) const {
 
 		return false;
 	}
