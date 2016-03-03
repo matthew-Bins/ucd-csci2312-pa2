@@ -1,4 +1,5 @@
 #include"Cluster.h"
+#include <sstream>
 
 namespace Clustering {
 
@@ -37,18 +38,18 @@ namespace Clustering {
 
 	Cluster::Cluster() {
 		__size = 0;
-		Point p(0);
-		LNode *node = new LNode(p, nullptr);
-		__points = node;
+		__points = nullptr;
 
 	}
 
 	Cluster::Cluster(const Cluster& copy) {
 		__size = copy.getSize();
-		__cpy(copy.__points);
+		if (copy.__points != nullptr)
+			__cpy(copy.__points);
 	}
 
 	Cluster& Cluster::operator=(const Cluster& c) {
+		this->__size = c.__size;
 		this->__cpy(c.__points);
 
 		return *this;
@@ -60,50 +61,80 @@ namespace Clustering {
 
 	int Cluster::getSize() const { return __size; }
 
-	void Cluster::add(const Point& point) {
-		++__size;
+	void Cluster::add(const Point& p) {
+		LNode *Add = new LNode(p, nullptr);
 
-		LNode *Add = new LNode(point, nullptr);
-		LNodePtr temp = __points, prev = nullptr;
-
-		if (__points == nullptr)
+		if (__points == nullptr){
 			__points = Add;
-		else {
-			while (temp != nullptr) {
+			__size++;
+			return;
+		}
+		else{
+			LNodePtr temp = __points, prev = nullptr;
+
+			while (temp != nullptr){
+				if (p < temp->point){
+
+					if (prev == nullptr){
+						__points = Add;
+						Add->next = temp;
+						__size++;
+
+						return;
+					}
+					else{
+						prev->next = Add;
+						Add->next = temp;
+						__size++;
+						return;
+					}
+				}
 				prev = temp;
 				temp = temp->next;
 			}
-			Add->next = temp;
 			prev->next = Add;
+			__size++;
 		}
-
 	}
 
 	const Point& Cluster::remove(const Point& p) {
 		int i = 0;
-		LNodePtr clust = __points, after = nullptr, prev = nullptr;
+		bool found = false;
+		LNodePtr temp = __points, prev = nullptr;
 
-		prev = clust;
-		while (clust != nullptr) {
-			if (clust->point == p) {
-				if (i == 0) {//delete the front
-					after = clust->next;
-					delete __points;
-					__points = after;
-					--__size;
-					return p;
-				}
-				else {//delete the middle
-					after = clust->next;
-					delete clust;
-					prev->next = after;
-					--__size;
-					return p;
-				}
+		if (temp == nullptr) {//no points in cluster
+			return p;
+		}
+
+		if (temp->next == nullptr) {
+			if (temp->point == p) {
+				__size = 0;
+				delete temp;
+				__points = nullptr;
 			}
-			prev = clust;
-			clust = clust->next;
-			++i;
+		}
+		else {
+			prev = __points;
+			temp = __points->next;
+
+			if (__points->point == p) {
+				__points = temp;
+				--__size;
+				delete prev, temp;
+				return p;
+			}
+
+			for (; !found && temp != nullptr; temp = temp->next) {
+				if (temp->point == p) {
+					prev->next = temp->next;
+					--__size;
+					found = true;
+					delete temp;
+					return p;
+				}
+
+				prev = temp;
+			}
 		}
 
 		return p;
@@ -124,31 +155,33 @@ namespace Clustering {
 	}
 
 	const Point& Cluster::operator[](unsigned int index) const {
+		this;
 		LNodePtr temp = __points;
-
-		for (int i = 0; i < index; ++i)
-			temp = temp->next;
-
+		if (__points != nullptr) {
+			for (int i = 0; i < index; ++i)
+				temp = temp->next;
+		}
 		return temp->point;
 	}
 
 	Cluster& Cluster::operator+=(const Point& p) {
-		this->add(p);
+		add(p);
 		return *this;
 	}
 
 	Cluster& Cluster::operator-=(const Point& p) {
-		this->remove(p);
+		remove(p);
 		return *this;
 	}
 
 	Cluster& Cluster::operator+=(const Cluster& c) {
-		int size = c.getSize();
+		LNodePtr temp = c.__points;
 
-		for (int i = 0; i < size; ++i)
-			if (!this->contains(c[i]))
-				this->add(c[i]);
-
+		while (temp != nullptr) {
+			if (!(this->contains(temp->point)))
+				add(temp->point);
+			temp = temp->next;
+		}
 		return *this;
 	}
 
@@ -166,27 +199,40 @@ namespace Clustering {
 		LNodePtr PT = c.__points;
 
 		while (PT != nullptr) {
-			os << PT->point << std::endl;
+			os << PT->point;
 			PT = PT->next;
 		}
-
 		return os;
 	}
 
 	std::istream& operator>>(std::istream& in, Cluster& c) {
+		std::string line;
+		int size;
 
+		while (getline(in, line)) {
+			size = count(line.begin(), line.end(), ',') + 1;
+			Point *New = new Point(size);
+			std::stringstream ss(line);
+			ss >> *New;
+			c.add(*New);
+		}
 
 		return in;
 	}
 
 	bool operator==(const Cluster& one, const Cluster& two) {
 		LNodePtr oneptr = one.__points, twoptr = two.__points;
-		while (oneptr != nullptr) {
-			if (oneptr->point != twoptr->point)
-				return false;
-			oneptr = oneptr->next;
-			twoptr = twoptr->next;
+
+		if (one.__size == two.__size) {
+			while (oneptr != nullptr) {
+				if (oneptr->point != twoptr->point)
+					return false;
+				oneptr = oneptr->next;
+				twoptr = twoptr->next;
+			}
 		}
+		else
+			return false;
 
 		return true;
 	}
@@ -206,15 +252,13 @@ namespace Clustering {
 	}
 
 	const Cluster operator+(const Cluster& one, const Cluster& two) {
-
-
-		return one;
+		Cluster c1(one);
+		return c1 += two;
 	}
 
 	const Cluster operator-(const Cluster& one, const Cluster& two) {
-
-
-		return one;
+		Cluster c1(one);
+		return c1 -= two;
 	}
 
 }

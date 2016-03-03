@@ -28,13 +28,13 @@ namespace Clustering {
 	
 	//copy constructor
 	Point::Point(const Point& point) {
+		__id = point.__id;
 		__dim = point.getDims();
 		__values = new double[__dim];
 
 		for (int i = 0; i < __dim; ++i)
 			__values[i] = point.getValue(i);
 
-		__id = __idGen++;
 	}
 
 	//destructor
@@ -47,7 +47,7 @@ namespace Clustering {
 	void Point::setValue(int dimensions, double val) {
 		__values[dimensions] = val;
 	}
-	double Point::getValue(int dimensions) const { return this->__values[dimensions]; }
+	double Point::getValue(int dimensions) const { return __values[dimensions]; }
 
 	double Point::distanceTo(const Point& p) const {
 		double answer = 0;
@@ -60,13 +60,16 @@ namespace Clustering {
 	}
 
 	Point& Point::operator=(const Point &p) {
+		__id = p.getId();
 		__dim = p.getDims();
 		for (int i = 0; i < __dim; ++i)
 			__values[i] = p.getValue(i);
+
 		return *this;
 	}
 
-	double& Point::operator[](int index) { return this->__values[index]; }
+	double& Point::operator[](int index) { return __values[index]; }
+
 
 	Point& Point::operator*=(double num) {
 		for (int i = 0; i < __dim; ++i)
@@ -108,10 +111,16 @@ namespace Clustering {
 
 	bool operator==(const Point& one, const Point& two) {
 		bool same = true;
-
-		for (int i = 0; i < one.getDims(); ++i)
-			if (one.getValue(i) != two.getValue(i))
-				same = false;
+		if (one.getId() != two.getId()) {
+			return false;
+		}
+		else if (one.__dim == two.__dim) {
+			for (int i = 0; i < one.getDims(); ++i)
+				if (one.getValue(i) != two.getValue(i))
+					same = false;
+		}
+		else
+			return false;
 
 		return same;
 	}
@@ -128,14 +137,7 @@ namespace Clustering {
 		return false;
 	}
 
-	bool operator>(const Point& one, const Point& two) {
-
-		for (int i = 0; i < one.getDims(); ++i)
-			if (one.getValue(i) > two.getValue(i))
-				return true;
-
-		return false;
-	}
+	bool operator>(const Point& one, const Point& two) { return !(one < two); }
 
 	bool operator<=(const Point& one, const Point& two) {
 
@@ -159,8 +161,8 @@ namespace Clustering {
 		int dis = p.getDims() - 1; 
 
 		for (int i = 0; i < dis; ++i)
-			os << p.getValue(i) << ", ";
-		os << p.getValue(dis + 1) << endl;
+			os << p.__values[i] << ", ";
+		os << p.getValue(dis) << endl;
 
 		return os;
 	}
@@ -168,15 +170,18 @@ namespace Clustering {
 	std::istream &operator>>(std::istream& in, Point& p) {
 		double point;
 		int index = 0;
-		std::string line;
+		std::string line, spoint;
 
-			while (std::getline(in, line, ',')) {
-				point = stod(line);
+		while (std::getline(in, line)) {
+
+			std::stringstream ss(line);
+			while (std::getline(ss, spoint, ',')) {
+
+				point = stod(spoint);
 				p.setValue(index, point);
 				++index;
 			}
-		
-		
+		}
 		return in;
 	}
 
